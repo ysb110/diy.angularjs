@@ -171,5 +171,118 @@ describe('Scope', function() {
 			 scope.$digest();
 			 expect(scope.counter).toBe(2);
 		});
+		it('在同一cycle中延时执行$evalAsync中的方法', function () {
+			 scope.aValue = [1, 2, 3];
+			 scope.asyncEvaluated = false;
+			 scope.asyncEvaluatedImmediately = false; 
+
+			 scope.$watch(function (scope) {
+			 	 return scope.aValue; 
+			 }, function (newValue, oldValue, scope) {
+			 	 scope.$evalAsync(function (scope) {
+			 	 	 scope.asyncEvaluated = true; 
+			 	 });
+			 	 scope.asyncEvaluatedImmediately = scope.asyncEvaluated; 
+			 });
+
+			 scope.$digest();
+			 expect(scope.asyncEvaluated).toBe(true);
+			 expect(scope.asyncEvaluatedImmediately).toBe(false);
+		});
+		it('没有脏数据也能延时执行wathFn中$evalAsync调用的方法', function () {
+			 scope.aValue = [1, 2, 3];
+			 scope.asyncEvaluatedTimes = 0;
+
+			 scope.$watch(function (scope) {
+			 	 if (scope.asyncEvaluatedTimes < 2) {
+			 	 	scope.$evalAsync(function (scope) {
+			 	 		 scope.asyncEvaluatedTimes++; 
+			 	 	});
+			 	 }
+			 	 return scope.aValue; 
+			 }, function (newValue, oldValue, scope) { }); 
+
+			 scope.$digest();
+			 expect(scope.asyncEvaluatedTimes).toBe(2);
+		});
+		it('在$evalAsync中安排一次digest,$evalAysnc只是为了防止误调用才加入这个（应该调用$applyAsync）', function (done) {
+			 scope.aValue = 'abc';
+			 scope.counter = 0;
+
+			 scope.$watch(function (scope) {
+			 	 return scope.aValue; 
+			 }, function (newValue, oldValue, scope) {
+			 	 scope.counter++; 
+			 }); 
+			 scope.$evalAsync(function () { });
+
+			 expect(scope.counter).toBe(0);
+			 setTimeout(function () {
+			 	expect(scope.counter).toBe(1);
+			 	done(); 
+			 }, 50);
+		});
+		it('同一cycle中永远不执行$applyAsync中的方法', function (done) {
+			 scope.aValue = [1, 2, 3];
+			 scope.asyncApplied = false;
+
+			 scope.$watch(function (scope) {
+			 	 return scope.aValue; 
+			 }, function (newValue, oldValue, scope) {
+			 	 scope.$applyAsync(function (scope) {
+			 	 	 scope.asyncApplied = true; 
+			 	 }); 
+			 }); 
+
+			 scope.$digest();
+			 expect(scope.asyncApplied).toBe(false);
+
+			 setTimeout(function () {
+			 	 expect(scope.asyncApplied).toBe(true);
+			 	 done(); 
+			 }, 50);
+		});
+		it('允许在digest时删除watcher', function () {
+			scope.aValue = 'abc';
+			var watchCalls = [];
+
+			scope.$watch(function (scope) {
+				watchCalls.push('first');
+				 return scope.aValue; 
+			});
+
+			var destoryWatch = scope.$watch(function (scope) {
+				 watchCalls.push("second");
+				 destoryWatch(); 
+			});
+			scope.$watch(function (scope) {
+				 watchCalls.push("third");
+				 return scope.aValue; 
+			});
+
+			scope.$digest();
+			expect(watchCalls).toEqual(['first','second','third','first','third']);
+		});
+		it('在digest中允许一个$watch去删除另一个', function () {
+			 scope.aValue = 'abc';
+			 scope.counter = 0;
+
+			 scope.$watch(function (scope) {
+			 	 return scope.aValue; 
+			 }, function (newValue, oldValue, scope) {
+			 	 destoryWatch(); 
+			 }); 
+			 var destoryWatch = scope.$watch(function (scope) { }, 
+			 	function (newValue, oldValue, scope) { });
+			 
+			 scope.$watch(function (scope) {
+			 	 return scope.aValue; 
+			 }, function (newValue, oldValue, scope) {
+			 	 scope.counter++; 
+			 });
+
+			 scope.$digest();
+			 expect(scope.counter).toBe(1);
+		});
 	});
 });
