@@ -37,7 +37,7 @@ module.exports = function(grunt) {
 						'node_modules/jquery/dist/jquery.js',
 						'node_modules/sinon/pkg/sinon.js',
 						'src/**/*.js',
-						'test/**/*.js'
+						'test/scope_public_sepc.js'
 					],
 					watch_files: [
 						'src/**/*.js',

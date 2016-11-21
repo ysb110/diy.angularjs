@@ -7,6 +7,7 @@ function Scope() {
 	this.$$postDigestQueue = [];
 	this.$root = this;
 	this.$$children = [];
+	this.$$listeners = {};
 	this.$$phase = null;
 }
 
@@ -226,6 +227,7 @@ Scope.prototype.$new = function(isolated, parent) {
 	parent.$$children.push(child);
 	child.$$watchers = [];
 	child.$$children = [];
+	child.$$listeners = {};
 	child.$parent = parent;
 	return child;
 };
@@ -238,4 +240,35 @@ Scope.prototype.$destroy = function() {
 		}
 	}
 	this.$$watchers = null;
+};
+
+Scope.prototype.$on = function(eventName, listener){
+	var listeners = this.$$listeners[eventName];
+	if (!listeners) {
+		this.$$listeners[eventName] = listeners = [];
+	}
+	listeners.push(listener);
+	return function () {
+		 var index = listeners.indexOf(listener);
+		 if (index >= 0) {
+		 	listeners.splice(index, 1);
+		 } 
+	}
+};
+Scope.prototype.$emit = function(eventName){
+	var additionalArgs = _.rest(arguments);
+	return this.$$fireEventOnScope(eventName, additionalArgs);
+};
+Scope.prototype.$broadcast = function(eventName){
+	var additionalArgs = _.rest(arguments);
+	return this.$$fireEventOnScope(eventName, additionalArgs);
+};
+Scope.prototype.$$fireEventOnScope = function(eventName, additionalArgs){
+	var event = {name: eventName};
+	var listenerArgs = [event].concat(additionalArgs);
+	var listeners = this.$$listeners[eventName] || [];
+	 _.forEach(listeners, function (listener) {
+	 	 listener.apply(null, listenerArgs); 
+	 });
+	 return event;
 };

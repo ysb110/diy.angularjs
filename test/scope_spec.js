@@ -325,37 +325,37 @@ describe('Scope', function() {
 			scope.$digest();
 			expect(counter).toEqual(1);
 		});
-		it("第一次执行时候oldValue === newValue", function () {
-			 var gotOldValues, gotNewValues;
+		it("第一次执行时候oldValue === newValue", function() {
+			var gotOldValues, gotNewValues;
 
-			 scope.aValue = 1;
-			 scope.anotherValue = 2;
+			scope.aValue = 1;
+			scope.anotherValue = 2;
 
-			 scope.$watchGroup([function (scope) {
-			 	 return scope.aValue; 
-			 }, function (scope) {
-			 	 return scope.anotherValue; 
-			 }], function (newValue, oldValue, scope) {
-			 	 gotNewValues = newValue;
-			 	 gotOldValues = oldValue; 
-			 });
-
-			 scope.$digest();
-			 expect(gotOldValues).toBe(gotNewValues);
-		});
-		it("watchArray是empty的时候也要执行Listener一次", function () {
-			var counter = 0;
-			scope.$watchGroup([], function (newValue, oldValue, scope) {
-				 counter++; 
+			scope.$watchGroup([function(scope) {
+				return scope.aValue;
+			}, function(scope) {
+				return scope.anotherValue;
+			}], function(newValue, oldValue, scope) {
+				gotNewValues = newValue;
+				gotOldValues = oldValue;
 			});
-			
+
+			scope.$digest();
+			expect(gotOldValues).toBe(gotNewValues);
+		});
+		it("watchArray是empty的时候也要执行Listener一次", function() {
+			var counter = 0;
+			scope.$watchGroup([], function(newValue, oldValue, scope) {
+				counter++;
+			});
+
 			scope.$digest();
 			expect(counter).toEqual(1);
 		});
-		it("已经删除的watch一次也不执行listener", function () {
+		it("已经删除的watch一次也不执行listener", function() {
 			var counter = 0;
-			var destroyGroup = scope.$watchGroup([], function (newValue, oldValue, scope) {
-				 counter++; 
+			var destroyGroup = scope.$watchGroup([], function(newValue, oldValue, scope) {
+				counter++;
 			});
 			destroyGroup();
 
@@ -363,25 +363,167 @@ describe('Scope', function() {
 			expect(counter).toEqual(0);
 		});
 	});
-	describe("inheritance", function () {
-		 it('继承parent的属性', function () {
-		 	 var parent = new Scope();
-		 	 parent.aValue = [1, 2, 3];
-		 	 var child = parent.$new();
-		 	 expect(child).toEqual([1, 2, 3]);
-		 });
-		 it("digest 所有孩子", function () {
-		 	 var parent = new Scope();
-		 	 var child = parent.$new();
-		 	 parent.aValue = 'abc';
+	describe("inheritance", function() {
+		it('继承parent的属性', function() {
+			var parent = new Scope();
+			parent.aValue = [1, 2, 3];
+			var child = parent.$new();
+			expect(child.aValue).toEqual([1, 2, 3]);
+		});
+		it("digest 所有孩子", function() {
+			var parent = new Scope();
+			var child = parent.$new();
+			parent.aValue = 'abc';
 
-		 	 child.$watch(function (scope) {
-		 	 	 return scope.aValue; 
-		 	 }, function (newValue, oldValue, scope) {
-		 	 	 scope.aValueWas = oldValue; 
-		 	 }); 
+			child.$watch(function(scope) {
+				return scope.aValue;
+			}, function(newValue, oldValue, scope) {
+				scope.aValueWas = oldValue;
+			});
 
-		 	 parent.$digest();
-		 	 expect(child.aValueWas).toBe('abc');
-		 });
+			parent.$digest();
+			expect(child.aValueWas).toBe('abc');
+		});
+		it('$applay每次从root进行digest', function() {
+			var parent = new Scope();
+			var child = parent.$new();
+			var child2 = child.$new();
+
+			parent.aValue = 'abc';
+			parent.counter = 0;
+			parent.$watch(function(scope) {
+				return scope.aValue;
+			}, function(newValue, oldValue, scope) {
+				scope.counter++;
+			});
+
+			child2.$apply(function(scope) {});
+			expect(parent.counter).toBe(1);
+		});
+		it('$evalAsync方法将安排一个根root上的digest方法', function(done) {
+			var parent = new Scope();
+			var child = parent.$new();
+			var child2 = child.$new();
+			parent.counter = 0;
+
+			parent.$watch(function(scope) {
+				return scope.aValue;
+			}, function(newValue, oldValue, scope) {
+				scope.counter++;
+			});
+
+			child2.$evalAsync(function(scope) {});
+
+			setTimeout(function() {
+				expect(parent.counter).toBe(1);
+				done();
+			}, 0);
+		});
+		it('当isolated时候子节点没有获取父节点属性的权限', function() {
+			var parent = new Scope();
+			var child = parent.$new(true);
+
+			parent.aValue = 'abc';
+			expect(child.aValue).toBeUndefined();
+		});
+		it('可以传入其它scope作为parent', function() {
+			var prototypeParent = new Scope();
+			var hierarchyParent = new Scope();
+			var child = prototypeParent.$new(false, hierarchyParent);
+
+			prototypeParent.a = 42;
+			expect(child.a).toBe(42);
+
+			child.counter = 0;
+			child.$watch(function(scope) {
+				scope.counter++;
+			});
+
+			prototypeParent.$digest();
+			expect(child.counter).toBe(0);
+
+			hierarchyParent.$digest();
+			expect(child.counter).toBe(2);
+		});
+		it('当scope调用$destory时,它不再执行digest', function() {
+			var parent = new Scope();
+			var child = parent.$new();
+
+			child.aValue = [1, 2, 3];
+			child.counter = 0;
+			child.$watch(function(scope) {
+				return scope.aValue;
+			}, function(newValue, oldValue, scope) {
+				scope.counter++;
+			}, true);
+
+			parent.$digest();
+			expect(child.counter).toBe(1);
+
+			child.aValue.push(4);
+			parent.$digest();
+			expect(child.counter).toBe(2);
+
+			child.aValue.push(5);
+			child.$destroy();
+			parent.$digest();
+			expect(child.counter).toBe(2);
+		});
+	});
+	describe('Events', function() {
+		var parent;
+		var scope;
+		var child;
+		var isolatedChild;
+		beforeEach(function() {
+			parent = new Scope();
+			scope = parent.$new();
+			child = scope.$new();
+			isolatedChild = scope.$new(true);
+		});
+		it('允许注册listeners', function() {
+			var listener1 = function() {};
+			var listener2 = function() {};
+			var listener3 = function() {};
+			scope.$on("someEvent", listener1);
+			scope.$on("someEvent", listener2);
+			scope.$on("someOtherEvent", listener3);
+			expect(scope.$$listeners).toEqual({
+				someEvent: [listener1, listener2],
+				someOtherEvent: [listener3]
+			});
+		});
+
+		it("对不同类型的scope加入listeners", function() {
+			var listener1 = function() {};
+			var listener2 = function() {};
+			var listener3 = function() {};
+			scope.$on('someEvent', listener1);
+			child.$on('someEvent', listener2);
+			isolatedChild.$on('someEvent', listener3);
+			expect(scope.$$listeners).toEqual({
+				someEvent: [listener1]
+			});
+			expect(child.$$listeners).toEqual({
+				someEvent: [listener2]
+			});
+			expect(isolatedChild.$$listeners).toEqual({
+				someEvent: [listener3]
+			});
+		});
+		_.forEach(['$emit', '$broadcast'], function (method) {
+			it('每个listener接收到的参数event都是一样的', function () {
+				var listener1 = jasmine.createSpy();
+				var listener2 = jasmine.createSpy();
+				scope.$on("someEvent", listener1);
+				scope.$on("someEvent", listener2);
+
+				scope[method]('scomeEvent');
+
+				var event1 = listener1.calls.mostRent().args[0];
+				var event2 = listener2.calls.mostRent().args[0];
+				expect(event1).toBe(event2);
+			});
+		})
+	});
 });
