@@ -45,7 +45,7 @@ function createInjector(modulesToLoad, strictDi) {
 		},
 		factory: function(key, factoryFn, enforce) {
 			this.provider(key, {
-				$get: enforce == false ? factoryFn : enforceReturnValue(factoryFn)
+				$get: enforce === false ? factoryFn : enforceReturnValue(factoryFn)
 			});
 		},
 		value: function(key, value) {
@@ -140,13 +140,13 @@ function createInjector(modulesToLoad, strictDi) {
 			var argDeclaration = source.match(FN_ARGS);
 			return _.map(argDeclaration[1].split(","), function(argName) {
 				return argName.match(FN_ARG)[2];
-			})
+			});
 		}
 	}
 
 	function runInvokeQueue(queue) {
 		_.forEach(queue, function(invokeArgs) {
-			var service = providerInjector.get(invokeArgs[0])
+			var service = providerInjector.get(invokeArgs[0]);
 			var method = invokeArgs[1];
 			var args = invokeArgs[2];
 			service[method].apply(service, args);

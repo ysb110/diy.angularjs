@@ -31,4 +31,4 @@ HashMap.prototype = {
 		 delete this[key];
 		 return value; 
 	}
-}
+};

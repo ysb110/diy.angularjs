@@ -11,7 +11,7 @@ function $CompileProvider ($provider) {
 				hasDirectives[name] = [];
 				$provider.factory(name + 'Directive', ['$injector', function ($injector) {
 					var factories = hasDirectives[name];
-					return _.map(factories, $inejctor.invoke);
+					return _.map(factories, $injector.invoke);
 				}]);
 			}
 			hasDirectives[name].push(directiveFactory);
@@ -50,7 +50,7 @@ function $CompileProvider ($provider) {
 		}
 		function addDirective (directives, name) {
 			if (hasDirectives.hasOwnProperty(name)) {
-				directives.push.apply(directives, $inejctor.get(name + 'Directive'));
+				directives.push.apply(directives, $injector.get(name + 'Directive'));
 			}
 		}
 		return compile;

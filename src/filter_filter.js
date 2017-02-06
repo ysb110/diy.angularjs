@@ -32,7 +32,7 @@ function createPredicateFn(expression, comparator) {
 			actual = ('' + actual).toLowerCase();
 			expected = ('' + expected).toLowerCase();
 			return actual.indexOf(expected) !== -1;
-		}
+		};
 	}
 
 	function deepCompare(actual, expected, comparator, matchAnyProperty, inWildcard) {
@@ -73,6 +73,6 @@ function createPredicateFn(expression, comparator) {
 			return deepCompare(item, expression.$, comparator);
 		}
 		return deepCompare(item, expression, comparator, true);
-	}
+	};
 }
 register('filter', filterFilter);

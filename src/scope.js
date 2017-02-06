@@ -1,5 +1,6 @@
 /* jshint globalstrict: true */
 /* global parse: false */
+'use strict';
 function Scope() {
 	this.$$watchers = [];
 	this.$$lastDirtyWatch = null;
@@ -255,7 +256,7 @@ Scope.prototype.$on = function(eventName, listener) {
 		if (index >= 0) {
 			listeners.splice(index, 1);
 		}
-	}
+	};
 };
 Scope.prototype.$emit = function(eventName) {
 	var additionalArgs = _.rest(arguments);
@@ -277,6 +278,7 @@ Scope.prototype.$$fireEventOnScope = function(eventName, additionalArgs) {
 	return event;
 };
 Scope.prototype.$watchCollection = function(watchFn, listenerFn) {
+	var self = this;
 	var newValue;
 	var oldValue;
 	var oldLength;
@@ -314,8 +316,8 @@ Scope.prototype.$watchCollection = function(watchFn, listenerFn) {
 				newLength = 0;
 				_.forOwn(newValue, function(newVal, key) {
 					newLength ++;
-					if (oldvalue.hasOwnProperty(key)) {
-						var bothNaN = _.isNaN(newItem) && _.isNaN(oldValue[i]);
+					if (oldValue.hasOwnProperty(key)) {
+						var bothNaN = _.isNaN(newVal) && _.isNaN(oldValue[key]);
 						if (!bothNaN && oldValue[key] !== newVal) {
 							changeCount++;
 							oldValue[key] = newVal;
@@ -337,7 +339,7 @@ Scope.prototype.$watchCollection = function(watchFn, listenerFn) {
 				}
 			}
 		} else {
-			if (!self.$$areEqual(newValue, oldValue, false)) {
+			if (!this.$$areEqual(newValue, oldValue, false)) {
 				changeCount++;
 			}
 			oldValue = newValue;

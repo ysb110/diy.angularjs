@@ -50,7 +50,7 @@ function ensureSafeObject(obj) {
 			throw 'Referencing window in Angular expressions  is disallowed';
 		} else if (obj.children && (obj.nodeName || (obj.prop && obj.attr && obj.find))) {
 			throw 'Referencing DOM nodes in Angular expressions is disallowed';
-		} else if (obj.constructor = obj) {
+		} else if (obj.constructor === obj) {
 			throw 'Referencing Function in Angular expressions is disallowed';
 		} else if (obj.getOwnPropertyNames || obj.getOwnPropertyDescriptor) {
 			throw 'Referencing Object in Angular expressions is disallowed!';
@@ -118,7 +118,7 @@ Lexer.prototype.lex = function(text) {
 	}
 
 	return this.tokens;
-}
+};
 Lexer.prototype.readIdent = function() {
 	var text = '';
 	while (this.index < this.text.length) {
@@ -136,7 +136,7 @@ Lexer.prototype.readIdent = function() {
 	};
 	this.tokens.push(token);
 };
-Lexer.prototype.readString = function(quote)) {
+Lexer.prototype.readString = function(quote) {
 	this.index++;
 	var string = '';
 	var rawString = quote;
@@ -432,7 +432,7 @@ AST.prototype.filter = function() {
 		}
 	}
 	return left;
-}
+};
 AST.prototype.primary = function() {
 	var primary;
 	if (this.expect('(')) {
@@ -490,6 +490,7 @@ AST.prototype.parseArguments = function() {
 };
 
 AST.prototype.arrayDeclaration = function() {
+	var elements = [];
 	if (!this.peek(']')) {
 		do {
 			if (this.peek(']')) {
@@ -605,7 +606,7 @@ ASTCompiler.prototype.compile = function(text) {
 			'var ' + this.state.vars.join(',') + ';' :
 			''
 		) + this.state.body.join('') + '};return fn;';
-
+	/* jshint -W054 */
 	return new Function('ensureSafeMemberName', 'ensureSafeObject', 'ensureSafeFunction', 'isDefined', 'filter', fnString)
 		(ensureSafeMemberName, ensureSafeObject, ensureSafeFunction, isDefined, filter);
 	/* jshint +W054 */
@@ -709,7 +710,7 @@ ASTCompiler.prototype.recurse = function(ast, context, create) {
 						callee = this.nonComputedMember(callContext.context, callContext.name);
 					}
 				}
-				addEnsureSafeFunction(callee);
+				this.addEnsureSafeFunction(callee);
 			}
 			return callee + '&&ensureSafeObject(' + callee + '(' + args.join(',') + '))';
 		case AST.AssignmentExpression:
@@ -816,7 +817,7 @@ ASTCompiler.prototype.filterPrefix = function() {
 	if (_.isEmpty(this.state.filters)) {
 		return '';
 	} else {
-		var parts = _.map(this.state.filters, function(varName, filtername) {
+		var parts = _.map(this.state.filters, function(varName, filterName) {
 			return varName + '=' + 'filter(' + this.escape(filterName) + ')';
 		});
 
@@ -838,7 +839,18 @@ function parse(expr) {
 		case 'string':
 			var lexer = new Lexer();
 			var parser = new Parser(lexer);
-			return parser.parse(expr);
+			var oneTime = false;
+			if (expr.charAt(0) === ':' && expr.charAt(1) === ':') {
+				oneTime = true;
+				expr = expr.substring(2);
+			}
+			var parseFn = parser.parse(expr);
+			if (parseFn.constant) {
+				parseFn.$$watchDelegate = constantWatchDelegate;
+			} else if (oneTime) {
+				parseFn.$$watchDelegate = oneTimeWatchDelegate;
+			}
+			return parseFn;
 		case 'function':
 			return expr;
 		default:

@@ -1,5 +1,6 @@
 /* jshint globalstrict: true*/
 /* global parse: false, register: false */
+'use strict';
 it('can parse filter expressions', function() {
 	register('upcase', function(){
 		return function(str) {

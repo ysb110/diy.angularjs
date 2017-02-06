@@ -524,6 +524,6 @@ describe('Scope', function() {
 				var event2 = listener2.calls.mostRent().args[0];
 				expect(event1).toBe(event2);
 			});
-		})
+		});
 	});
 });

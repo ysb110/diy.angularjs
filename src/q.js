@@ -13,5 +13,5 @@ function $QProvider () {
 			defer: defer
 		};
 
-	}
+	};
 }
