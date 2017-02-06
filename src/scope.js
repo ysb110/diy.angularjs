@@ -1,3 +1,5 @@
+/* jshint globalstrict: true */
+/* global parse: false */
 function Scope() {
 	this.$$watchers = [];
 	this.$$lastDirtyWatch = null;
@@ -15,7 +17,7 @@ function initWatchVal() {}
 Scope.prototype.$watch = function(watchFn, listenerFn, valueEq) {
 	var self = this;
 	var watcher = {
-		watchFn: watchFn,
+		watchFn: parse(watchFn),
 		listenerFn: listenerFn || function() {},
 		last: initWatchVal,
 		valueEq: !!valueEq
@@ -108,7 +110,7 @@ Scope.prototype.$$areEqual = function(newValue, oldValue, valueEq) {
 };
 
 Scope.prototype.$eval = function(expr, locals) {
-	return expr(this, locals);
+	return parse(expr)(this, locals);
 };
 Scope.prototype.$apply = function(expr) {
 	try {
@@ -242,33 +244,119 @@ Scope.prototype.$destroy = function() {
 	this.$$watchers = null;
 };
 
-Scope.prototype.$on = function(eventName, listener){
+Scope.prototype.$on = function(eventName, listener) {
 	var listeners = this.$$listeners[eventName];
 	if (!listeners) {
 		this.$$listeners[eventName] = listeners = [];
 	}
 	listeners.push(listener);
-	return function () {
-		 var index = listeners.indexOf(listener);
-		 if (index >= 0) {
-		 	listeners.splice(index, 1);
-		 } 
+	return function() {
+		var index = listeners.indexOf(listener);
+		if (index >= 0) {
+			listeners.splice(index, 1);
+		}
 	}
 };
-Scope.prototype.$emit = function(eventName){
+Scope.prototype.$emit = function(eventName) {
 	var additionalArgs = _.rest(arguments);
 	return this.$$fireEventOnScope(eventName, additionalArgs);
 };
-Scope.prototype.$broadcast = function(eventName){
+Scope.prototype.$broadcast = function(eventName) {
 	var additionalArgs = _.rest(arguments);
 	return this.$$fireEventOnScope(eventName, additionalArgs);
 };
-Scope.prototype.$$fireEventOnScope = function(eventName, additionalArgs){
-	var event = {name: eventName};
+Scope.prototype.$$fireEventOnScope = function(eventName, additionalArgs) {
+	var event = {
+		name: eventName
+	};
 	var listenerArgs = [event].concat(additionalArgs);
 	var listeners = this.$$listeners[eventName] || [];
-	 _.forEach(listeners, function (listener) {
-	 	 listener.apply(null, listenerArgs); 
-	 });
-	 return event;
+	_.forEach(listeners, function(listener) {
+		listener.apply(null, listenerArgs);
+	});
+	return event;
+};
+Scope.prototype.$watchCollection = function(watchFn, listenerFn) {
+	var newValue;
+	var oldValue;
+	var oldLength;
+	var veryOldValue;
+	var trackVeryOldValue = (listenerFn.length > 1);
+	var changeCount = 0;
+	var firstRun = true;
+	var internalWatchFn = function(scope) {
+		var newLength;
+		newValue = watchFn(scope);
+
+		if (_.isObject(newValue)) {
+			if (_.isArrayLike(newValue)) {
+				if (!_.isArray(oldValue)) {
+					changeCount++;
+					oldValue = [];
+				}
+				if (newValue.length !== oldValue.length) {
+					changeCount++;
+					oldValue.length = newValue.length;
+				}
+				_.forEach(newValue, function (newItem, i) {
+					var bothNaN = _.isNaN(newItem) && _.isNaN(oldValue[i]);
+					if (!bothNaN && newItem !== oldValue[i]) {
+						changeCount++;
+						oldValue[i] = newItem;
+					}
+				});
+			} else {
+				if (!_.isObject(oldValue) || _.isArrayLike(oldValue)) {
+					changeCount++;
+					oldValue = {};
+					oldLength = 0;
+				}
+				newLength = 0;
+				_.forOwn(newValue, function(newVal, key) {
+					newLength ++;
+					if (oldvalue.hasOwnProperty(key)) {
+						var bothNaN = _.isNaN(newItem) && _.isNaN(oldValue[i]);
+						if (!bothNaN && oldValue[key] !== newVal) {
+							changeCount++;
+							oldValue[key] = newVal;
+						}
+					} else {
+						changeCount++;
+						oldLength++;
+						oldValue[key] = newVal;
+					}
+				});
+				if (oldLength > newLength) {
+					changeCount++;
+					_.forOwn(oldValue, function (oldVal, key) {
+						if (!newValue.hasOwnProperty(key)) {
+							oldLength--;
+							delete oldValue[key];
+						}
+					});
+				}
+			}
+		} else {
+			if (!self.$$areEqual(newValue, oldValue, false)) {
+				changeCount++;
+			}
+			oldValue = newValue;
+		}
+
+		return changeCount;
+	};
+
+	var internalListenerFn = function(scope) {
+		if (firstRun) {
+			listenerFn(newValue, newValue, self);
+			firstRun = false;
+		}
+		listenerFn(newValue, veryOldValue, self);
+
+		if (trackVeryOldValue) {
+			veryOldValue = _.clone(newValue);
+		}
+	};
+
+	return this.$watch(internalWatchFn, internalListenerFn);
 };

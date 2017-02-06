@@ -15,7 +15,7 @@ function createInjector(modulesToLoad, strictDi) {
 	var instanceInjector = instanceCache.$injector = createInternalInjector(instanceCache, function(name) {
 		var provider = providerInjector.get(name + "Provider");
 		return instanceInjector.invoke(provider.$get, provider);
-	})
+	});
 	var loadedModules = new HashMap();
 	var path = [];
 	strictDi = (strictDi === true);
@@ -170,7 +170,7 @@ function createInjector(modulesToLoad, strictDi) {
 	});
 	_.forEach(_.compact(runBlocks), function(runBlock) {
 		instanceInjector.invoke(runBlock);
-	})
+	});
 
 	return instanceInjector;
 }
