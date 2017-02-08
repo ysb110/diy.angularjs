@@ -75,20 +75,34 @@ describe('$compile', function() {
 	_.forEach(['x', 'data'], function(prefix) {
 		_.forEach([':', '-', '_'], function(delim) {
 			it('compiles element directives with ' + prefix + delim + ' prefix', function() {
-				var injector = makeInjectorWithDirectives('myDir', function () {
+				var injector = makeInjectorWithDirectives('myDir', function() {
 					return {
-						compile: function (element) {
+						compile: function(element) {
 							element.data('hasCompiled', true);
 						}
 					};
 				});
-				injector.invoke(function ($compile) {
+				injector.invoke(function($compile) {
 					var el = $('<' + prefix + delim + 'my-dir></' + prefix + delim + 'my-dir>');
 					$compile(el);
 					expect(el.data('hasCompiled')).toBe(true);
 				});
 			});
 		});
+	});
+	it('calls observer on next $digest after registration', function() {
+		registerAndCompile(
+			'myDirective',
+			'<my-directive some-attribute="42"></my-directive>',
+			function (element, attrs, $rootScope) {
+				var gotValue;
+				attrs.$observe('someAttribute', function (value) {
+					gotValue = value;
+				});
+				$rootScope.$digest();
+				expect(gotValue).toEqual('42');
+			}
+		);
 	});
 });
 
@@ -97,4 +111,21 @@ function makeInjectorWithDirectives() {
 	return createInjector(['ng', function($compileProvider) {
 		$compileProvider.directive.apply($compileProvider, args);
 	}]);
+}
+
+function registerAndCompile(dirName, domString, callback) {
+	var givenAttrs;
+	var injector = makeInjectorWithDirectives(dirName, function() {
+		return {
+			restrict: 'EACM',
+			compile: function(element, attrs) {
+				givenAttrs = attrs;
+			}
+		};
+	});
+	injector.invoke(function($compile, $rootScope) {
+		var el = $(domString);
+		$compile(el);
+		callback(el, givenAttrs, $rootScope);
+	});
 }
